@@ -1,4 +1,4 @@
-# 📱 Sparki Connect App - API
+# 📱 Sparki Connect App - APIs
 
 This repository contains the backend APIs for the **Sparki Connect App**, developed using **Node.js** and **Express.js**. It handles essential backend features such as authentication, education modules, mentor programs, question bank management, file uploads (PDFs/images), and payment integration.
 
