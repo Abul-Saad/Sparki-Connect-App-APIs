@@ -16,15 +16,4 @@ This repository contains the backend APIs for the **Sparki Connect App**, develo
 
 ---
 
-## 📁 Project Structure
-Sparki-Connect/
-│
-├── controllers/ # Business logic for each feature
-├── routes/ # API routes
-├── middleware/ # Auth & file handling
-├── db/ # MySQL connection
-├── uploads/ # Uploaded files (images, PDFs)
-├── utils/ # Helper functions
-├── index.js # Entry point
-├── package.json # Dependencies & scripts
-└── .env # Environment variables (not included in repo)
+## 📁 Project Structure 
