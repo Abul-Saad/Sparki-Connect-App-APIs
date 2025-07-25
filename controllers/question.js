@@ -1053,7 +1053,7 @@ const getMyQuestions = async (req, res) => {
     const total = countResult.total;
 
     const questions = await userQuery(
-      `SELECT id, title, details, tags, is_approved, posted_at 
+      `SELECT id, title, details, tags, is_approved, is_reject, posted_at 
        FROM questions 
        WHERE user_id = ? AND deleted_at IS NULL
        ORDER BY posted_at DESC LIMIT ? OFFSET ?`,

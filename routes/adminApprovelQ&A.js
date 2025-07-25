@@ -9,6 +9,7 @@ router.get("/get-pending-questions", verifyUser, adminApproveController.getPendi
 router.get("/get-approved-questions", verifyUser, adminApproveController.getApprovedQuestions);
 router.post("/reject-question/:questionId", verifyUser, adminApproveController.adminRejectQuestion);
 router.get("/get-rejected-questions", verifyUser, adminApproveController.getMyRejectedQuestions);
+router.get("/approve-reject-notification", verifyUser, adminApproveController.getApproveRejectNotifications);
 
 
 export default router;

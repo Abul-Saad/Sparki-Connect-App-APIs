@@ -9,8 +9,11 @@ import fs from 'fs';
 
 // upload Pdf Template
 const uploadTemplatePdf = async (req, res) => {
-    const { name, type, access } = req.body;
-    const pdfFile = req.file;
+    const { name, type, access, video_url } = req.body;
+    const pdfFile = req.files?.pdf?.[0];
+    const videoFile = req.files?.video?.[0];
+    const imageFile = req.files?.image?.[0];
+
 
      // ✅ Check if user is admin
     if (!req.user || req.user.userType !== "admin") {
@@ -30,11 +33,13 @@ const uploadTemplatePdf = async (req, res) => {
     }
 
     try {
-        const filePath = `/uploads/templatesPdf/${pdfFile.filename}`;
+        const pdfPath = pdfFile ? `/uploads/templatesPdf/pdf/${pdfFile.filename}` : null;
+        const videoPath = videoFile ? `/uploads/templatesPdf/video/${videoFile.filename}` : null;
+        const imagePath = imageFile ? `/uploads/templatesPdf/image/${imageFile.filename}` : null;
 
         await userQuery(
-            `INSERT INTO templates_pdf  (name, file_path, type, access) VALUES (?, ?, ?, ?)`,
-            [name, filePath, type, access || "free"]
+            `INSERT INTO templates_pdf  (name, file_path, type, access, video_file, video_url, image_file) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [name, pdfPath, type, access || "free", videoPath, video_url || null, imagePath]
         );
 
         return res.status(200).json({
@@ -58,7 +63,7 @@ const getAllTemplatePdf = async (req, res) => {
     const userType = req.user?.userType || "visitor";
 
     try {
-        let query = `SELECT id, name, type, access, file_path, uploaded_at FROM templates_pdf`;
+        let query = `SELECT* FROM templates_pdf`;
         let params = [];
 
         if (userType !== "admin") {
@@ -92,8 +97,10 @@ const getAllTemplatePdf = async (req, res) => {
 };
 
 const updateTemplatePdf = async (req, res) => {
-    const { id, name, type, access } = req.body;
-    const newPdfFile = req.file;
+    const { id, name, type, access, video_url } = req.body;
+    const newPdfFile = req.files?.pdf?.[0];
+    const newVideoFile = req.files?.video?.[0];
+    const newImageFile = req.files?.video?.[0];
 
     // Only admin can update
     if(!req.user || req.user.userType !== "admin") {
@@ -113,38 +120,63 @@ const updateTemplatePdf = async (req, res) => {
     }
 
     try {
-       const rows = await userQuery(`SELECT file_path FROM templates_pdf WHERE id = ?`, [id]);
-
-if (!rows || rows.length === 0) {
-    return res.status(404).json({
-        status: "error",
-        message: "Template not found.",
-        statusCode: 404
-    });
-}
-
-let updatedFilePath = rows[0].file_path;
-
-       if(newPdfFile){
-        const oldFilePath = path.join("public", rows[0].file_path);
-        if(fs.existsSync (oldFilePath)){
-            fs.unlinkSync(oldFilePath);
+       const rows = await userQuery(`SELECT file_path, video_file, image_file FROM templates_pdf WHERE id = ?`, [id]);
+        if (!rows || rows.length === 0) {
+            return res.status(404).json({
+                status: "error",
+                message: "Template not found.",
+                statusCode: 404
+            });
         }
 
-        updatedFilePath = `/uploads/templatesPdf/${newPdfFile.filename}`;
+      const old = rows[0];
+        let updatedPdfPath = old.file_path;
+        let updatedVideoPath = old.video_file;
+        let updatedImagePath = old.image_file;
 
-       }
+       if (newPdfFile) {
+            const oldPdf = path.join("public", old.file_path);
+            if (fs.existsSync(oldPdf)) fs.unlinkSync(oldPdf);
+            updatedPdfPath = `/uploads/templatesPdf/pdf/${newPdfFile.filename}`;
+        }
 
-       await userQuery(
-        `UPDATE templates_pdf SET name = ?, type = ?, access = ?, file_path = ? WHERE id = ?`,
-        [name, type, access, updatedFilePath, id]
-       );
+        if (newVideoFile) {
+            if (old.video_file) {
+                const oldVideo = path.join("public", old.video_file);
+                if (fs.existsSync(oldVideo)) fs.unlinkSync(oldVideo);
+            }
+            updatedVideoPath = `/uploads/templatesPdf/video/${newVideoFile.filename}`;
+        }
 
-       return res.status(200).json({
-        status : "success",
-        message : "Template updated successfully.",
-        statusCode : 200,
-       });
+        if (newImageFile) {
+            if (old.image_file) {
+                const oldImg = path.join("public", old.image_file);
+                if (fs.existsSync(oldImg)) fs.unlinkSync(oldImg);
+            }
+            updatedImagePath = `/uploads/templatesPdf/image/${newImageFile.filename}`;
+        }
+
+        await userQuery(
+            `UPDATE templates_pdf 
+             SET name = ?, type = ?, access = ?, file_path = ?, video_file = ?, video_url = ?, image_file = ?
+             WHERE id = ?`,
+            [
+                name,
+                type,
+                access,
+                updatedPdfPath,
+                updatedVideoPath,
+                video_url || null,
+                updatedImagePath,
+                id
+            ]
+        );
+
+        return res.status(200).json({
+            status: "success",
+            message: "Template updated successfully.",
+            statusCode: 200,
+        });
 
     } catch (error) {
         console.error("Update Pdf: ", error);
@@ -154,7 +186,7 @@ let updatedFilePath = rows[0].file_path;
             statusCode :500,
         });
     }
-}
+};
 
 const deleteTemplatePdf = async (req, res) => {
     const { id } = req.params;
@@ -189,11 +221,10 @@ const deleteTemplatePdf = async (req, res) => {
 
 }
 
-
 export default {
     uploadTemplatePdf,
     getAllTemplatePdf,
     updateTemplatePdf,
     deleteTemplatePdf,
-    
+     
 }

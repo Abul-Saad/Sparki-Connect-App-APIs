@@ -4,7 +4,7 @@ import _ from "lodash";
 import userQuery from "../utils/helper/dbHelper.js";
 
 const addEducationResource = async (req, res) => {
-    const { title, description, read_time, category, level } = req.body;
+    const { title, description, read_time, video_url, category, level } = req.body;
     const user = req.user;
 
     // Allowed levels
@@ -33,6 +33,8 @@ const addEducationResource = async (req, res) => {
     // Get uploaded file paths
     const iconPath = req.files?.icon?.[0]?.path.replace(/\\/g, "/") || null;
     const imagePath = req.files?.image_banner?.[0]?.path.replace(/\\/g, "/") || null;
+    const videoFilePath = req.files?.video_file?.[0]?.path.replace(/\\/g, "/") || null;
+
 
     // Validate required fields
     const errors = [];
@@ -42,6 +44,8 @@ const addEducationResource = async (req, res) => {
     if (!category || typeof category !== "string") errors.push("category (string) is required");
     if (!iconPath) errors.push("icon (image file) is required");
     if (!imagePath) errors.push("Image (image file) is required");
+    if (video_url && typeof video_url !== "string") errors.push("video_url must be a string");
+    if (videoFilePath && typeof videoFilePath !== "string") errors.push("video_file must be a valid file");
     if (!level || typeof level !== "string") errors.push("level (string) is required");
 
     if (errors.length > 0) {
@@ -72,9 +76,9 @@ const addEducationResource = async (req, res) => {
 
         // Insert new education resource
         await userQuery(
-            `INSERT INTO education (title, description, read_time, icon, image_banner, category, level)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [title, description, read_time, `/${iconPath}`,`/${imagePath}`, category, level]
+            `INSERT INTO education (title, description, read_time, icon, image_banner, video_url, video_file, category, level)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [title, description, read_time, `/${iconPath}`,`/${imagePath}`, video_url, videoFilePath ? `/${videoFilePath}` : null, category, level]
         );
 
         return res.status(201).json({
@@ -215,7 +219,7 @@ const getEducationResources = async (req, res) => {
 
 const updateEducationResources = async (req, res) => {
     const { id } = req.params;
-    const { title, description, read_time, category, level } = req.body;
+    const { title, description, read_time, video_url, category, level } = req.body;
     const user = req.user;
 
     const validLevels = ['All Levels', 'Beginner', 'Medium', 'Expert'];
@@ -233,6 +237,7 @@ const updateEducationResources = async (req, res) => {
      // ✅ Extract file paths if uploaded
     const iconPath = req.files?.icon?.[0]?.path.replace(/\\/g, "/");
     const imagePath = req.files?.image_banner?.[0]?.path.replace(/\\/g, "/");
+    const videoFilePath = req.files?.video_file?.[0]?.path.replace(/\\/g, "/");
 
     // ✅ Validate field types
     const errors = [];
@@ -278,6 +283,8 @@ const updateEducationResources = async (req, res) => {
         if (level !== undefined) fieldsToUpdate.level = level;
         if (iconPath) fieldsToUpdate.icon = `/${iconPath}`;
         if (imagePath) fieldsToUpdate.image_banner = `/${imagePath}`;
+        if (video_url !== undefined) fieldsToUpdate.video_url = video_url;
+        if (videoFilePath) fieldsToUpdate.video_file = `/${videoFilePath}`;
 
         // ✅ Require at least one field
         if (Object.keys(fieldsToUpdate).length === 0) {
@@ -377,5 +384,5 @@ export default {
     getEducationResources,
     updateEducationResources,
     deleteEducationResources
-    // Additional methods can be added here in the future
+    
 }

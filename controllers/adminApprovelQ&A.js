@@ -35,6 +35,16 @@ const adminApproveQuestions = async (req, res) => {
       questionId,
     ]);
 
+    // Get the user_id to notify the question author
+    const userId = question.user_id;
+    const message = `Your question "${question.title}" has been approved by admin.`;
+
+    // Insert notification
+    await userQuery(
+      `INSERT INTO approve_reject_notifications (user_id, message) VALUES (?, ?)`,
+      [userId, message]
+    );
+
     return res.status(200).json({
       status: "success",
       message: "Question approved successfully",
@@ -224,54 +234,59 @@ const adminRejectQuestion = async (req, res) => {
   }
 
   //Validation reason
-  if(!feedback || feedback.trim() === "") {
+  if (!feedback || feedback.trim() === "") {
     return res.status(400).json({
-      status : "error",
-      error : "Bad Request",
-      message : "Rejection feedback is required.",
-      statusCode : 400
+      status: "error",
+      error: "Bad Request",
+      message: "Rejection feedback is required.",
+      statusCode: 400,
     });
   }
 
   try {
-    const [question] = await userQuery(
-      `SELECT * FROM questions WHERE id = ?`,
-      [questionId]
-    );
+    const [question] = await userQuery(`SELECT * FROM questions WHERE id = ?`, [
+      questionId,
+    ]);
 
-    if(!question){
+    if (!question) {
       return res.status(404).json({
-        status : "error",
-        error : "Not Found",
-        message : "Question Not Found",
-        statusCode : 404
+        status: "error",
+        error: "Not Found",
+        message: "Question Not Found",
+        statusCode: 404,
       });
     }
 
     await userQuery(
       `UPDATE questions SET is_approved = 0, is_reject = 1, is_deleted = 1, reject_reason = ?
        WHERE id = ?`,
-       [feedback, questionId]
+      [feedback, questionId]
+    );
+
+    // Send rejection notification
+    const userId = question.user_id;
+    const message = `Your question "${question.title}" was rejected by admin. Reason: ${feedback}`;
+
+    await userQuery(
+      `INSERT INTO approve_reject_notifications (user_id, message) VALUES (?, ?)`,
+      [userId, message]
     );
 
     return res.status(200).json({
-      status : "success",
-      message : "Question rejected successfully.",
-      statusCode : 200,
+      status: "success",
+      message: "Question rejected successfully.",
+      statusCode: 200,
     });
-
   } catch (error) {
     console.error("DB Error: ", error);
     return res.status(500).json({
-      status : "error",
-      error : "Internal Server Error",
-      message : error.message,
-      statusCode : 500
+      status: "error",
+      error: "Internal Server Error",
+      message: error.message,
+      statusCode: 500,
     });
   }
-
-
-}
+};
 
 const getMyRejectedQuestions = async (req, res) => {
   const { userId } = req.user;
@@ -282,26 +297,54 @@ const getMyRejectedQuestions = async (req, res) => {
        FROM questions 
        WHERE user_id = ? AND is_reject = 1 AND is_deleted = 1
        ORDER BY updated_at DESC`,
-       [userId]
+      [userId]
     );
 
     return res.status(200).json({
-      status : "success",
-      message : "Your rejected questions fetched successfully.",
-      data : rejectedQuestions,
-      statusCode : 200,
+      status: "success",
+      message: "Your rejected questions fetched successfully.",
+      data: rejectedQuestions,
+      statusCode: 200,
     });
-
   } catch (error) {
     console.error("DB Error: ", error);
     return res.status(500).json({
-      status : "error",
-      error : "Internal Server Error",
-      message : error.message,
-      statusCode : 500
+      status: "error",
+      error: "Internal Server Error",
+      message: error.message,
+      statusCode: 500,
     });
   }
-}
+};
+
+const getApproveRejectNotifications = async (req, res) => {
+  const { userId } = req.user;
+
+  try {
+    const notifications = await userQuery(
+      `SELECT id, message, is_read, created_at 
+       FROM approve_reject_notifications 
+       WHERE user_id = ? 
+       ORDER BY created_at DESC`,
+      [userId]
+    );
+
+    return res.status(200).json({
+      status: "success",
+      message: "Questions Notifications fetched successfully",
+      data: notifications,
+      statusCode: 200,
+    });
+  } catch (error) {
+    console.error("DB Error :", error);
+    return res.status(500).json({
+      status: "error",
+      error: "Internal Server Error",
+      message: error.message,
+      statusCode: 500,
+    });
+  }
+};
 
 export default {
   adminApproveQuestions,
@@ -309,4 +352,5 @@ export default {
   getApprovedQuestions,
   adminRejectQuestion,
   getMyRejectedQuestions,
+  getApproveRejectNotifications,
 };

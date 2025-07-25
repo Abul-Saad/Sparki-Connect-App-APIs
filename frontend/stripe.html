@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Stripe Payment UI Test</title>
+  <script src="https://js.stripe.com/v3/"></script>
+</head>
+<body>
+  <h2>Stripe Payment UI Test</h2>
+  <label>Amount (INR): <input id="amount" type="number" value="5" /></label><br><br>
+  <label>Email: <input id="email" value="test@yopmail.com" /></label><br><br>
+  <label>JWT Token: <input id="token" size="80" /></label><br><br>
+  <div id="card-element"></div><br>
+  <button onclick="makePayment()">Pay Now</button>
+  <p id="result"></p>
+
+  <script>
+    const stripe = Stripe("pk_test_key"); // ✅ Replace with your publishable key
+    const elements = stripe.elements();
+    const card = elements.create("card");
+    card.mount("#card-element");
+
+    async function makePayment() {
+      const amount = document.getElementById("amount").value;
+      const email = document.getElementById("email").value;
+      const jwtToken = document.getElementById("token").value;
+      const resultEl = document.getElementById("result");
+
+      try {
+        // ✅ 1. Call your backend to create PaymentIntent
+        const res = await fetch("http://localhost:3000/api/payments/create-payment-intent", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${jwtToken}`
+          },
+          body: JSON.stringify({ amount: Number(amount), currency: "inr", customer_email: email })
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.clientSecret) {
+          resultEl.innerHTML = "❌ " + (data.message || "Failed to create payment intent.");
+          return;
+        }
+
+        const clientSecret = data.clientSecret;
+        const paymentIntentId = data.paymentIntentId;
+
+        // ✅ 2. Confirm payment with Stripe.js (shows 3D Secure if needed)
+        const result = await stripe.confirmCardPayment(clientSecret, {
+          payment_method: {
+            card: card,
+            billing_details: {
+              email: email
+            }
+          }
+        });
+
+        if (result.error) {
+          resultEl.innerHTML = "❌ Payment failed: " + result.error.message;
+          return;
+        }
+
+        const paymentIntent = result.paymentIntent;
+        if (paymentIntent.status === "succeeded") {
+          resultEl.innerHTML = "✅ Payment successful! Updating your subscription...";
+
+          // ✅ 3. Call backend to confirm payment and insert into DB
+          const confirmRes = await fetch("http://localhost:3000/api/payments/confirm-payment", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${jwtToken}`
+            },
+            body: JSON.stringify({
+              paymentIntentId: paymentIntent.id,
+              paymentMethodId: paymentIntent.payment_method
+            })
+          });
+
+          const confirmData = await confirmRes.json();
+          if (confirmRes.ok) {
+            resultEl.innerHTML += "<br>🎉 " + confirmData.message;
+          } else {
+            resultEl.innerHTML += "<br>⚠️ Failed to update database: " + confirmData.message;
+          }
+        } else {
+          resultEl.innerHTML = "⚠️ Payment not successful yet. Status: " + paymentIntent.status;
+        }
+      } catch (err) {
+        console.error(err);
+        resultEl.innerHTML = "❌ Unexpected error: " + err.message;
+      }
+    }
+  </script>
+</body>
+</html>

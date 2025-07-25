@@ -3,21 +3,24 @@ import dotenv from "dotenv";
 import "dotenv/config";
 dotenv.config();
 
-// Middleware to verify JWT token
+
+// 3rd verify JWT token Handles both cookies and Authorization: Bearer header
 const verifyUser = (req, res, next) => {
-  const token = req.cookies.token || req.headers["authorization"]; // Retrieve token from cookies
+  let token = req.cookies.token || req.headers["authorization"];
+
+  // If token is from Authorization header, extract the actual token after "Bearer "
+  if (token && token.startsWith("Bearer ")) {
+    token = token.split(" ")[1];
+  }
 
   if (!token) {
-    return res
-      .status(401)
-      .json({ message: "Access denied. No token provided." });
+    return res.status(401).json({ message: "Access denied. No token provided." });
   }
 
   try {
-    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // Attach decoded user data to request object
-    next(); // Proceed to the next middleware or route handler
+    req.user = decoded;
+    next();
   } catch (error) {
     res.status(403).json({ message: "Invalid token." });
   }
