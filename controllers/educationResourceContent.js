@@ -168,7 +168,13 @@ const getEducationResourceContent = async (req, res) => {
         });
         
     } catch (error) {
-        
+        console.error("Error fetching education resources:", error);
+        return res.status(500).json({
+            error: "Internal Server Error",
+            message: "Something went wrong while fetching education content",
+            statusCode: 500,
+            status: "error"
+        });
     }
 
    
